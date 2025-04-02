@@ -7,6 +7,8 @@ import hashlib
 import json
 import difflib
 import jsbeautifier
+import argparse
+import uuid
 
 from decouple import config
 from slack.errors import SlackApiError
@@ -17,7 +19,7 @@ SLACK_TOKEN = config("JSMON_SLACK_TOKEN", default="CHANGEME")
 SLACK_CHANNEL_ID = config("JSMON_SLACK_CHANNEL_ID", default="CHANGEME")
 NOTIFY_SLACK = config("JSMON_NOTIFY_SLACK", default=False, cast=bool)
 NOTIFY_TELEGRAM = config("JSMON_NOTIFY_TELEGRAM", default=False, cast=bool)
-DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME")
+DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
 NOTIFY_DISCORD = config("JSMON_NOTIFY_DISCORD", default=False, cast=bool)
 
 if NOTIFY_SLACK:
@@ -161,7 +163,7 @@ def notify_slack(endpoint, prev, new, diff, prevsize, newsize):
         print(f"Got an error: {e.response['error']}")
 
 
-def notify_discord(endpoint, prev, new, prevsize, newsize):
+def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
     """Sends a notification to Discord via webhook."""
 
     webhook_data = {
@@ -181,6 +183,11 @@ def notify_discord(endpoint, prev, new, prevsize, newsize):
                         "inline": True,
                     },
                     {"name": "New Size", "value": f"{newsize} Bytes", "inline": True},
+                    {
+                        "name": "Diff Link",
+                        "value": f"[View Diff]({diff_link})",
+                        "inline": False,
+                    },
                 ],
                 "footer": {"text": "JSMon Change Detection"},
             }
@@ -197,8 +204,7 @@ def notify_discord(endpoint, prev, new, prevsize, newsize):
         return None
 
 
-def notify(endpoint, prev, new):
-    diff = get_diff(prev, new)
+def notify(endpoint, prev, new, diff, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
     if NOTIFY_TELEGRAM:
@@ -208,11 +214,46 @@ def notify(endpoint, prev, new):
         notify_slack(endpoint, prev, new, diff, prevsize, newsize)
 
     if NOTIFY_DISCORD:
-        notify_discord(endpoint, prev, new, prevsize, newsize)
+        notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
 
 
 def main():
     print("JSMon - Web File Monitor")
+
+    parser = argparse.ArgumentParser(
+        description="Monitor web JavaScript files for changes."
+    )
+    parser.add_argument(
+        "--diff-target",
+        metavar="DIRECTORY",
+        type=str,
+        help="Directory to save HTML diff files.",
+        default=None,
+    )
+    parser.add_argument(
+        "--diffs-base-url",
+        metavar="URL",
+        type=str,
+        help="Base URL for diff files.",
+        default=None,
+    )
+    args = parser.parse_args()
+
+    diff_target_dir = args.diff_target
+
+    if diff_target_dir:
+        if not os.path.exists(diff_target_dir):
+            try:
+                os.makedirs(diff_target_dir)
+                print(f"Created diff target directory: {diff_target_dir}")
+            except OSError as e:
+                print(f"Error creating directory {diff_target_dir}: {e}")
+                diff_target_dir = None
+        elif not os.path.isdir(diff_target_dir):
+            print(
+                f"Error: Specified diff target '{diff_target_dir}' is a file, not a directory."
+            )
+            diff_target_dir = None
 
     if not (NOTIFY_SLACK or NOTIFY_TELEGRAM or NOTIFY_DISCORD):
         print(
@@ -236,8 +277,19 @@ def main():
             continue
         else:
             save_endpoint(ep, ep_hash, ep_text)
+            diff = None
+            diff_link = None
             if prev_hash is not None:
-                notify(ep, prev_hash, ep_hash)
+                diff = get_diff(prev_hash, ep_hash)
+                if diff_target_dir:
+                    id = str(uuid.uuid4())
+                    diff_filepath = os.path.join(diff_target_dir, f"{id}.html")
+                    with open(diff_filepath, "w") as f:
+                        f.write(diff)
+                    print(f"Diff saved locally to {diff_filepath}")
+                    if args.diffs_base_url:
+                        diff_link = f"{args.diffs_base_url}/{id}.html"
+                notify(ep, prev_hash, ep_hash, diff, diff_link)
             else:
                 print("New Endpoint enrolled: {}".format(ep))
 
