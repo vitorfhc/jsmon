@@ -181,6 +181,65 @@ def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
         return None
 
 
+def notify_error_telegram(endpoint, error_message):
+    print(f"[ERROR] Error accessing endpoint: {endpoint}")
+    log_entry = (
+        f"Error accessing endpoint <code>{endpoint}</code>: <b>{error_message}</b>"
+    )
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
+
+    try:
+        sendfile = requests.post(
+            "https://api.telegram.org/bot{token}/sendMessage".format(
+                token=TELEGRAM_TOKEN
+            ),
+            data=payload,
+        )
+        return sendfile
+    except Exception as e:
+        print(f"Failed to send Telegram error notification: {e}")
+        return None
+
+
+def notify_error_discord(endpoint, error_message):
+    """Sends an error notification to Discord via webhook."""
+    webhook_data = {
+        "username": "JSMon Bot",
+        "avatar_url": "https://i.imgur.com/fKL31aD.jpg",
+        "embeds": [
+            {
+                "title": "JSMon Error Alert",
+                "description": f"Error accessing endpoint: `{endpoint}`",
+                "color": 15158332,  # Red color
+                "fields": [
+                    {
+                        "name": "Error Message",
+                        "value": f"```{error_message}```",
+                        "inline": False,
+                    }
+                ],
+                "footer": {"text": "JSMon Error Detection"},
+            }
+        ],
+    }
+
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
+        response.raise_for_status()
+        print(f"Discord error notification sent successfully for {endpoint}.")
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending Discord error notification for {endpoint}: {e}")
+        return None
+
+
+def notify_error(endpoint, error_message):
+    if NOTIFY_TELEGRAM:
+        notify_error_telegram(endpoint, error_message)
+    if NOTIFY_DISCORD:
+        notify_error_discord(endpoint, error_message)
+
+
 def notify(endpoint, prev, new, diff, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
@@ -211,9 +270,15 @@ def main():
         help="Base URL for diff files.",
         default=None,
     )
+    parser.add_argument(
+        "--notify-on-errors",
+        action="store_true",
+        help="Send notifications when errors occur while accessing endpoints.",
+    )
     args = parser.parse_args()
 
     diff_target_dir = args.diff_target
+    notify_on_errors = args.notify_on_errors
 
     if diff_target_dir:
         if not os.path.exists(diff_target_dir):
@@ -243,6 +308,8 @@ def main():
         prev_hash = get_previous_endpoint_hash(ep)
         ep_text = get_endpoint(ep)
         if ep_text is None:
+            if notify_on_errors:
+                notify_error(ep, "Failed to access endpoint")
             print(f"Skipping endpoint {ep} due to failed request")
             continue
 
