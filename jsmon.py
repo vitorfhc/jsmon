@@ -61,13 +61,23 @@ def get_endpoint_list(endpointdir):
 
 
 def get_endpoint(endpoint):
-    # get an endpoint, return its content
-    r = requests.get(endpoint)
-    return r.text
+    # get an endpoint, return its content with timeout and error handling
+    try:
+        r = requests.get(endpoint, timeout=10)
+        r.raise_for_status()  # Raise an exception for bad status codes
+        return r.text
+    except requests.Timeout:
+        print(f"Timeout error accessing endpoint: {endpoint}")
+        return None
+    except requests.RequestException as e:
+        print(f"Error accessing endpoint {endpoint}: {e}")
+        return None
 
 
 def get_hash(string):
     # Hash a string
+    if string is None:
+        return None
     return hashlib.md5(string.encode("utf8")).hexdigest()[:10]
 
 
@@ -272,6 +282,10 @@ def main():
     for ep in allendpoints:
         prev_hash = get_previous_endpoint_hash(ep)
         ep_text = get_endpoint(ep)
+        if ep_text is None:
+            print(f"Skipping endpoint {ep} due to failed request")
+            continue
+
         ep_hash = get_hash(ep_text)
         if ep_hash == prev_hash:
             continue
