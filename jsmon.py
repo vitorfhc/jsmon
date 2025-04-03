@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import requests
-import re
 import os
 import hashlib
 import json
@@ -9,6 +8,7 @@ import difflib
 import jsbeautifier
 import argparse
 import uuid
+from urllib.parse import urlparse
 
 from decouple import config
 
@@ -20,17 +20,20 @@ NOTIFY_DISCORD = config("JSMON_NOTIFY_DISCORD", default=False, cast=bool)
 
 
 def is_valid_endpoint(endpoint):
-    regex = re.compile(
-        r"^(?:http|ftp)s?://"  # http:// or https://
-        r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"  # domain...
-        r"localhost|"  # localhost...
-        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ip
-        r"(?::\d+)?"  # optional port
-        r"(?:/?|[/?]\S+)$",
-        re.IGNORECASE,
-    )
-    # check if valid url
-    return re.match(regex, endpoint) is not None
+    """Validate if the given endpoint is a valid URL.
+
+    Args:
+        endpoint (str): The URL to validate
+
+    Returns:
+        bool: True if the URL is valid, False otherwise
+    """
+    try:
+        result = urlparse(endpoint)
+        # Check if scheme and netloc are present
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
 
 
 def get_endpoint_list(endpointdir):
@@ -279,6 +282,12 @@ def main():
 
     diff_target_dir = args.diff_target
     notify_on_errors = args.notify_on_errors
+
+    if args.diffs_base_url and not is_valid_endpoint(args.diffs_base_url):
+        print(
+            f"Error: Invalid URL provided for --diffs-base-url: {args.diffs_base_url}"
+        )
+        exit(1)
 
     if diff_target_dir:
         if not os.path.exists(diff_target_dir):
