@@ -11,25 +11,12 @@ import argparse
 import uuid
 
 from decouple import config
-from slack.errors import SlackApiError
 
 TELEGRAM_TOKEN = config("JSMON_TELEGRAM_TOKEN", default="CHANGEME")
 TELEGRAM_CHAT_ID = config("JSMON_TELEGRAM_CHAT_ID", default="CHANGEME")
-SLACK_TOKEN = config("JSMON_SLACK_TOKEN", default="CHANGEME")
-SLACK_CHANNEL_ID = config("JSMON_SLACK_CHANNEL_ID", default="CHANGEME")
-NOTIFY_SLACK = config("JSMON_NOTIFY_SLACK", default=False, cast=bool)
 NOTIFY_TELEGRAM = config("JSMON_NOTIFY_TELEGRAM", default=False, cast=bool)
 DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
 NOTIFY_DISCORD = config("JSMON_NOTIFY_DISCORD", default=False, cast=bool)
-
-if NOTIFY_SLACK:
-    from slack.web.client import WebClient
-
-    if SLACK_TOKEN == "CHANGEME":
-        print("ERROR SLACK TOKEN NOT FOUND!")
-        exit(1)
-    assert isinstance(SLACK_TOKEN, str)
-    client = WebClient(token=SLACK_TOKEN)
 
 
 def is_valid_endpoint(endpoint):
@@ -153,26 +140,6 @@ def notify_telegram(endpoint, prev, new, diff, prevsize, newsize):
     #                         data=payload).content
 
 
-def notify_slack(endpoint, prev, new, diff, prevsize, newsize):
-    try:
-        response = client.files_upload(
-            initial_comment="[JSmon] {} has been updated! Download below diff HTML file to check changes.".format(
-                endpoint
-            ),
-            channels=SLACK_CHANNEL_ID,
-            content=diff,
-            channel=SLACK_CHANNEL_ID,
-            filetype="html",
-            filename="diff.html",
-            title="Diff changes",
-        )
-        return response
-    except SlackApiError as e:
-        assert e.response["ok"] is False
-        assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
-        print(f"Got an error: {e.response['error']}")
-
-
 def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
     """Sends a notification to Discord via webhook."""
 
@@ -220,9 +187,6 @@ def notify(endpoint, prev, new, diff, diff_link):
     if NOTIFY_TELEGRAM:
         notify_telegram(endpoint, prev, new, diff, prevsize, newsize)
 
-    if NOTIFY_SLACK:
-        notify_slack(endpoint, prev, new, diff, prevsize, newsize)
-
     if NOTIFY_DISCORD:
         notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
 
@@ -265,15 +229,11 @@ def main():
             )
             diff_target_dir = None
 
-    if not (NOTIFY_SLACK or NOTIFY_TELEGRAM or NOTIFY_DISCORD):
-        print(
-            "You need to setup Slack, Telegram or Discord Notifications for JSMon to work!"
-        )
+    if not (NOTIFY_TELEGRAM or NOTIFY_DISCORD):
+        print("You need to setup Telegram or Discord Notifications for JSMon to work!")
         exit(1)
     if NOTIFY_TELEGRAM and "CHANGEME" in [TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]:
         print("Please Set Up your Telegram Token And Chat ID!!!")
-    if NOTIFY_SLACK and "CHANGEME" in [SLACK_TOKEN, SLACK_CHANNEL_ID]:
-        print("Please Set Up your Sllack Token And Channel ID!!!")
     if NOTIFY_DISCORD and "CHANGEME" in [DISCORD_WEBHOOK_URL]:
         print("Please Set Up your Discord Webhook URL!!!")
 
