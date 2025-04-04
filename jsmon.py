@@ -11,14 +11,14 @@ import argparse
 import uuid
 from urllib.parse import urlparse
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 TELEGRAM_TOKEN = config("JSMON_TELEGRAM_TOKEN", default="CHANGEME")
 TELEGRAM_CHAT_ID = config("JSMON_TELEGRAM_CHAT_ID", default="CHANGEME")
 NOTIFY_TELEGRAM = config("JSMON_NOTIFY_TELEGRAM", default=False, cast=bool)
-DISCORD_WEBHOOK_URL = config(
-    "JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
+DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
 NOTIFY_DISCORD = DISCORD_WEBHOOK_URL
 
 
@@ -65,8 +65,8 @@ def get_endpoint(endpoint):
             return None
 
         # Check content type
-        content_type = r.headers.get('content-type', '').lower()
-        if 'application/javascript' not in content_type:
+        content_type = r.headers.get("content-type", "").lower()
+        if "javascript" not in content_type:
             warning_msg = f"Unexpected content type: {content_type}"
             notify_warning(endpoint, warning_msg)
             return None
@@ -136,10 +136,8 @@ def get_diff(old, new):
     options = BeautifierOptions(opt)
     oldlines = open("downloads/{}".format(old), "r").readlines()
     newlines = open("downloads/{}".format(new), "r").readlines()
-    oldbeautified = jsbeautifier.beautify(
-        "".join(oldlines), options).splitlines()
-    newbeautified = jsbeautifier.beautify(
-        "".join(newlines), options).splitlines()
+    oldbeautified = jsbeautifier.beautify("".join(oldlines), options).splitlines()
+    newbeautified = jsbeautifier.beautify("".join(newlines), options).splitlines()
     # print(oldbeautified)
     # print(newbeautified)
 
@@ -150,18 +148,15 @@ def get_diff(old, new):
 
 
 def notify_telegram(endpoint, prev, new, diff, prevsize, newsize):
-    print("[!!!] Endpoint [ {} ] has changed from {} to {}".format(
-        endpoint, prev, new))
+    print("[!!!] Endpoint [ {} ] has changed from {} to {}".format(endpoint, prev, new))
     log_entry = "{} has been updated from <code>{}</code>(<b>{}</b>Bytes) to <code>{}</code>(<b>{}</b>Bytes)".format(
         endpoint, prev, prevsize, new, newsize
     )
-    payload = {"chat_id": TELEGRAM_CHAT_ID,
-               "caption": log_entry, "parse_mode": "HTML"}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": log_entry, "parse_mode": "HTML"}
     fpayload = {"document": ("diff.html", diff)}
 
     sendfile = requests.post(
-        "https://api.telegram.org/bot{token}/sendDocument".format(
-            token=TELEGRAM_TOKEN),
+        "https://api.telegram.org/bot{token}/sendDocument".format(token=TELEGRAM_TOKEN),
         files=fpayload,
         data=payload,
     )
@@ -203,8 +198,7 @@ def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
     }
 
     try:
-        response = requests.post(
-            DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
+        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         print(f"Discord notification sent successfully for {endpoint}.")
         return response
@@ -218,8 +212,7 @@ def notify_error_telegram(endpoint, error_message):
     log_entry = (
         f"Error accessing endpoint <code>{endpoint}</code>: <b>{error_message}</b>"
     )
-    payload = {"chat_id": TELEGRAM_CHAT_ID,
-               "text": log_entry, "parse_mode": "HTML"}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
 
     try:
         sendfile = requests.post(
@@ -257,8 +250,7 @@ def notify_error_discord(endpoint, error_message):
     }
 
     try:
-        response = requests.post(
-            DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
+        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
         response.raise_for_status()
         print(f"Discord error notification sent successfully for {endpoint}.")
         return response
@@ -286,9 +278,10 @@ def notify(endpoint, prev, new, diff, diff_link):
 
 def notify_warning_telegram(endpoint, warning_message):
     print(f"[WARNING] Warning for endpoint: {endpoint}")
-    log_entry = f"⚠️ Warning for endpoint <code>{endpoint}</code>: <b>{warning_message}</b>"
-    payload = {"chat_id": TELEGRAM_CHAT_ID,
-               "text": log_entry, "parse_mode": "HTML"}
+    log_entry = (
+        f"⚠️ Warning for endpoint <code>{endpoint}</code>: <b>{warning_message}</b>"
+    )
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
 
     try:
         response = requests.post(
@@ -326,15 +319,12 @@ def notify_warning_discord(endpoint, warning_message):
     }
 
     try:
-        response = requests.post(
-            DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
+        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
         response.raise_for_status()
-        print(
-            f"Discord warning notification sent successfully for {endpoint}.")
+        print(f"Discord warning notification sent successfully for {endpoint}.")
         return response
     except requests.exceptions.RequestException as e:
-        print(
-            f"Error sending Discord warning notification for {endpoint}: {e}")
+        print(f"Error sending Discord warning notification for {endpoint}: {e}")
         return None
 
 
