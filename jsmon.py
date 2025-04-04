@@ -56,7 +56,27 @@ def get_endpoint(endpoint):
     # get an endpoint, return its content with timeout and error handling
     try:
         r = requests.get(endpoint, timeout=10, verify=False)
-        r.raise_for_status()  # Raise an exception for bad status codes
+        
+        # Check status code
+        if not (200 <= r.status_code < 300):
+            warning_msg = f"Non-2xx status code: {r.status_code}"
+            notify_warning(endpoint, warning_msg)
+            return None
+        
+        # Check content type
+        content_type = r.headers.get('content-type', '').lower()
+        if 'application/json' not in content_type:
+            warning_msg = f"Unexpected content type: {content_type}"
+            notify_warning(endpoint, warning_msg)
+            return None
+        
+        # Check for empty body
+        body = r.text.strip()
+        if not body:
+            warning_msg = "Empty response body"
+            notify_warning(endpoint, warning_msg)
+            return None
+            
         return r.text
     except requests.Timeout:
         print(f"Timeout error accessing endpoint: {endpoint}")
@@ -253,6 +273,63 @@ def notify(endpoint, prev, new, diff, diff_link):
 
     if NOTIFY_DISCORD:
         notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
+
+
+def notify_warning_telegram(endpoint, warning_message):
+    print(f"[WARNING] Warning for endpoint: {endpoint}")
+    log_entry = f"⚠️ Warning for endpoint <code>{endpoint}</code>: <b>{warning_message}</b>"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
+
+    try:
+        response = requests.post(
+            "https://api.telegram.org/bot{token}/sendMessage".format(
+                token=TELEGRAM_TOKEN
+            ),
+            data=payload,
+        )
+        return response
+    except Exception as e:
+        print(f"Failed to send Telegram warning notification: {e}")
+        return None
+
+
+def notify_warning_discord(endpoint, warning_message):
+    """Sends a warning notification to Discord via webhook."""
+    webhook_data = {
+        "username": "JSMon Bot",
+        "avatar_url": "https://i.imgur.com/fKL31aD.jpg",
+        "embeds": [
+            {
+                "title": "JSMon Warning Alert",
+                "description": f"Warning for endpoint: `{endpoint}`",
+                "color": 16776960,  # Yellow color
+                "fields": [
+                    {
+                        "name": "Warning Message",
+                        "value": f"```{warning_message}```",
+                        "inline": False,
+                    }
+                ],
+                "footer": {"text": "JSMon Warning Detection"},
+            }
+        ],
+    }
+
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
+        response.raise_for_status()
+        print(f"Discord warning notification sent successfully for {endpoint}.")
+        return response
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending Discord warning notification for {endpoint}: {e}")
+        return None
+
+
+def notify_warning(endpoint, warning_message):
+    if NOTIFY_TELEGRAM:
+        notify_warning_telegram(endpoint, warning_message)
+    if NOTIFY_DISCORD:
+        notify_warning_discord(endpoint, warning_message)
 
 
 def main():
