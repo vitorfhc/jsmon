@@ -8,6 +8,8 @@ import difflib
 import jsbeautifier
 import argparse
 import uuid
+import signal
+import sys
 from urllib.parse import urlparse
 import urllib3
 from notifiers import DiscordNotifier
@@ -16,6 +18,21 @@ from datetime import datetime
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 notifier = DiscordNotifier()
+
+# Global flag to track if we should continue running
+running = True
+
+
+def signal_handler(sig, frame):
+    """Handle SIGINT (Ctrl+C) gracefully."""
+    global running
+    print("Received interrupt signal. Exiting gracefully...")
+    running = False
+    sys.exit(0)
+
+
+# Register the signal handler
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def is_valid_endpoint(endpoint):
@@ -209,6 +226,8 @@ def main():
     allendpoints = get_endpoint_list("targets")
 
     for ep in allendpoints:
+        if not running:
+            break
         if ep.strip() == "":
             continue
         if not is_valid_endpoint(ep):
