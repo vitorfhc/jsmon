@@ -14,8 +14,7 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
-NOTIFY_DISCORD = DISCORD_WEBHOOK_URL
+DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="", cast=str)
 
 
 def is_valid_endpoint(endpoint):
@@ -33,6 +32,15 @@ def is_valid_endpoint(endpoint):
         return all([result.scheme, result.netloc])
     except Exception:
         return False
+
+
+# Validate Discord webhook URL at startup
+if not DISCORD_WEBHOOK_URL:
+    print("Error: JSMON_DISCORD_WEBHOOK_URL is not set")
+    exit(1)
+if not is_valid_endpoint(DISCORD_WEBHOOK_URL):
+    print(f"Error: Invalid Discord webhook URL: {DISCORD_WEBHOOK_URL}")
+    exit(1)
 
 
 def get_endpoint_list(endpointdir):
@@ -217,15 +225,13 @@ def notify_error_discord(endpoint, error_message):
 
 
 def notify_error(endpoint, error_message):
-    if NOTIFY_DISCORD:
-        notify_error_discord(endpoint, error_message)
+    notify_error_discord(endpoint, error_message)
 
 
 def notify(endpoint, prev, new, diff, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
-    if NOTIFY_DISCORD:
-        notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
+    notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
 
 
 def notify_warning_discord(endpoint, warning_message):
@@ -261,8 +267,7 @@ def notify_warning_discord(endpoint, warning_message):
 
 
 def notify_warning(endpoint, warning_message):
-    if NOTIFY_DISCORD:
-        notify_warning_discord(endpoint, warning_message)
+    notify_warning_discord(endpoint, warning_message)
 
 
 def main():
@@ -308,12 +313,6 @@ def main():
                 f"Error: Specified diff target '{diff_target_dir}' is a file, not a directory."
             )
             diff_target_dir = None
-
-    if not NOTIFY_DISCORD:
-        print("You need to setup Discord Notifications for JSMon to work!")
-        exit(1)
-    if NOTIFY_DISCORD and "CHANGEME" in [DISCORD_WEBHOOK_URL]:
-        print("Please Set Up your Discord Webhook URL!!!")
 
     allendpoints = get_endpoint_list("targets")
 
