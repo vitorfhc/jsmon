@@ -9,6 +9,8 @@ import jsbeautifier
 import argparse
 import uuid
 from urllib.parse import urlparse
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from decouple import config
 
@@ -53,7 +55,7 @@ def get_endpoint_list(endpointdir):
 def get_endpoint(endpoint):
     # get an endpoint, return its content with timeout and error handling
     try:
-        r = requests.get(endpoint, timeout=10)
+        r = requests.get(endpoint, timeout=10, verify=False)
         r.raise_for_status()  # Raise an exception for bad status codes
         return r.text
     except requests.Timeout:
