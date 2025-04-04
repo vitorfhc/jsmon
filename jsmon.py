@@ -14,10 +14,6 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
-TELEGRAM_TOKEN = config("JSMON_TELEGRAM_TOKEN", default="CHANGEME")
-TELEGRAM_CHAT_ID = config("JSMON_TELEGRAM_CHAT_ID", default="CHANGEME")
-NOTIFY_TELEGRAM = config("JSMON_NOTIFY_TELEGRAM", default=False, cast=bool)
 DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="CHANGEME", cast=str)
 NOTIFY_DISCORD = DISCORD_WEBHOOK_URL
 
@@ -147,25 +143,6 @@ def get_diff(old, new):
     return html
 
 
-def notify_telegram(endpoint, prev, new, diff, prevsize, newsize):
-    print("[!!!] Endpoint [ {} ] has changed from {} to {}".format(endpoint, prev, new))
-    log_entry = "{} has been updated from <code>{}</code>(<b>{}</b>Bytes) to <code>{}</code>(<b>{}</b>Bytes)".format(
-        endpoint, prev, prevsize, new, newsize
-    )
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": log_entry, "parse_mode": "HTML"}
-    fpayload = {"document": ("diff.html", diff)}
-
-    sendfile = requests.post(
-        "https://api.telegram.org/bot{token}/sendDocument".format(token=TELEGRAM_TOKEN),
-        files=fpayload,
-        data=payload,
-    )
-    # print(sendfile.content)
-    return sendfile
-    # test2 = requests.post("https://api.telegram.org/bot{token}/sendMessage".format(token=TELEGRAM_TOKEN),
-    #                         data=payload).content
-
-
 def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
     """Sends a notification to Discord via webhook."""
 
@@ -207,26 +184,6 @@ def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
         return None
 
 
-def notify_error_telegram(endpoint, error_message):
-    print(f"[ERROR] Error accessing endpoint: {endpoint}")
-    log_entry = (
-        f"Error accessing endpoint <code>{endpoint}</code>: <b>{error_message}</b>"
-    )
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
-
-    try:
-        sendfile = requests.post(
-            "https://api.telegram.org/bot{token}/sendMessage".format(
-                token=TELEGRAM_TOKEN
-            ),
-            data=payload,
-        )
-        return sendfile
-    except Exception as e:
-        print(f"Failed to send Telegram error notification: {e}")
-        return None
-
-
 def notify_error_discord(endpoint, error_message):
     """Sends an error notification to Discord via webhook."""
     webhook_data = {
@@ -260,8 +217,6 @@ def notify_error_discord(endpoint, error_message):
 
 
 def notify_error(endpoint, error_message):
-    if NOTIFY_TELEGRAM:
-        notify_error_telegram(endpoint, error_message)
     if NOTIFY_DISCORD:
         notify_error_discord(endpoint, error_message)
 
@@ -269,31 +224,8 @@ def notify_error(endpoint, error_message):
 def notify(endpoint, prev, new, diff, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
-    if NOTIFY_TELEGRAM:
-        notify_telegram(endpoint, prev, new, diff, prevsize, newsize)
-
     if NOTIFY_DISCORD:
         notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
-
-
-def notify_warning_telegram(endpoint, warning_message):
-    print(f"[WARNING] Warning for endpoint: {endpoint}")
-    log_entry = (
-        f"⚠️ Warning for endpoint <code>{endpoint}</code>: <b>{warning_message}</b>"
-    )
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": log_entry, "parse_mode": "HTML"}
-
-    try:
-        response = requests.post(
-            "https://api.telegram.org/bot{token}/sendMessage".format(
-                token=TELEGRAM_TOKEN
-            ),
-            data=payload,
-        )
-        return response
-    except Exception as e:
-        print(f"Failed to send Telegram warning notification: {e}")
-        return None
 
 
 def notify_warning_discord(endpoint, warning_message):
@@ -329,8 +261,6 @@ def notify_warning_discord(endpoint, warning_message):
 
 
 def notify_warning(endpoint, warning_message):
-    if NOTIFY_TELEGRAM:
-        notify_warning_telegram(endpoint, warning_message)
     if NOTIFY_DISCORD:
         notify_warning_discord(endpoint, warning_message)
 
@@ -379,11 +309,9 @@ def main():
             )
             diff_target_dir = None
 
-    if not (NOTIFY_TELEGRAM or NOTIFY_DISCORD):
-        print("You need to setup Telegram or Discord Notifications for JSMon to work!")
+    if not NOTIFY_DISCORD:
+        print("You need to setup Discord Notifications for JSMon to work!")
         exit(1)
-    if NOTIFY_TELEGRAM and "CHANGEME" in [TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]:
-        print("Please Set Up your Telegram Token And Chat ID!!!")
     if NOTIFY_DISCORD and "CHANGEME" in [DISCORD_WEBHOOK_URL]:
         print("Please Set Up your Discord Webhook URL!!!")
 
