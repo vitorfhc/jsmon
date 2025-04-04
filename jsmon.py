@@ -142,12 +142,9 @@ def get_diff(old, new):
     newlines = open("downloads/{}".format(new), "r").readlines()
     oldbeautified = jsbeautifier.beautify("".join(oldlines), options).splitlines()
     newbeautified = jsbeautifier.beautify("".join(newlines), options).splitlines()
-    # print(oldbeautified)
-    # print(newbeautified)
 
     differ = difflib.HtmlDiff()
     html = differ.make_file(oldbeautified, newbeautified)
-    # open("test.html", "w").write(html)
     return html
 
 
