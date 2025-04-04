@@ -11,10 +11,12 @@ import argparse
 import uuid
 from urllib.parse import urlparse
 import urllib3
+from notifiers import DiscordNotifier
+from datetime import datetime
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-DISCORD_WEBHOOK_URL = config("JSMON_DISCORD_WEBHOOK_URL", default="", cast=str)
+notifier = DiscordNotifier()
 
 
 def is_valid_endpoint(endpoint):
@@ -32,15 +34,6 @@ def is_valid_endpoint(endpoint):
         return all([result.scheme, result.netloc])
     except Exception:
         return False
-
-
-# Validate Discord webhook URL at startup
-if not DISCORD_WEBHOOK_URL:
-    print("Error: JSMON_DISCORD_WEBHOOK_URL is not set")
-    exit(1)
-if not is_valid_endpoint(DISCORD_WEBHOOK_URL):
-    print(f"Error: Invalid Discord webhook URL: {DISCORD_WEBHOOK_URL}")
-    exit(1)
 
 
 def get_endpoint_list(endpointdir):
@@ -148,123 +141,33 @@ def get_diff(old, new):
     return html
 
 
-def notify_discord(endpoint, prev, new, prevsize, newsize, diff_link):
-    """Sends a notification to Discord via webhook."""
-
-    webhook_data = {
-        "username": "JSMon Bot",
-        "avatar_url": "https://i.imgur.com/fKL31aD.jpg",  # Example avatar
-        "embeds": [
-            {
-                "title": "JS Endpoint Updated!",
-                "description": f"Endpoint: `{endpoint}`",
-                "color": 3447003,  # Blue color
-                "fields": [
-                    {"name": "Previous Hash", "value": f"`{prev}`", "inline": True},
-                    {"name": "New Hash", "value": f"`{new}`", "inline": True},
-                    {
-                        "name": "Previous Size",
-                        "value": f"{prevsize} Bytes",
-                        "inline": True,
-                    },
-                    {"name": "New Size", "value": f"{newsize} Bytes", "inline": True},
-                    {
-                        "name": "Diff Link",
-                        "value": f"[View Diff]({diff_link})",
-                        "inline": False,
-                    },
-                ],
-                "footer": {"text": "JSMon Change Detection"},
-            }
-        ],
-    }
-
-    try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        print(f"Discord notification sent successfully for {endpoint}.")
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending Discord notification for {endpoint}: {e}")
-        return None
-
-
-def notify_error_discord(endpoint, error_message):
-    """Sends an error notification to Discord via webhook."""
-    webhook_data = {
-        "username": "JSMon Bot",
-        "avatar_url": "https://i.imgur.com/fKL31aD.jpg",
-        "embeds": [
-            {
-                "title": "JSMon Error Alert",
-                "description": f"Error accessing endpoint: `{endpoint}`",
-                "color": 15158332,  # Red color
-                "fields": [
-                    {
-                        "name": "Error Message",
-                        "value": f"```{error_message}```",
-                        "inline": False,
-                    }
-                ],
-                "footer": {"text": "JSMon Error Detection"},
-            }
-        ],
-    }
-
-    try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
-        response.raise_for_status()
-        print(f"Discord error notification sent successfully for {endpoint}.")
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending Discord error notification for {endpoint}: {e}")
-        return None
-
-
 def notify_error(endpoint, error_message):
-    notify_error_discord(endpoint, error_message)
+    fields = [
+        ("Error Type", "Endpoint Access Error"),
+        ("Timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    ]
+    notifier.notify_error(endpoint, error_message, fields)
 
 
 def notify(endpoint, prev, new, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
-    notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
-
-
-def notify_warning_discord(endpoint, warning_message):
-    """Sends a warning notification to Discord via webhook."""
-    webhook_data = {
-        "username": "JSMon Bot",
-        "avatar_url": "https://i.imgur.com/fKL31aD.jpg",
-        "embeds": [
-            {
-                "title": "JSMon Warning Alert",
-                "description": f"Warning for endpoint: `{endpoint}`",
-                "color": 16776960,  # Yellow color
-                "fields": [
-                    {
-                        "name": "Warning Message",
-                        "value": f"```{warning_message}```",
-                        "inline": False,
-                    }
-                ],
-                "footer": {"text": "JSMon Warning Detection"},
-            }
-        ],
-    }
-
-    try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=webhook_data, timeout=10)
-        response.raise_for_status()
-        print(f"Discord warning notification sent successfully for {endpoint}.")
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending Discord warning notification for {endpoint}: {e}")
-        return None
+    fields = [
+        ("Previous Hash", f"`{prev}`"),
+        ("New Hash", f"`{new}`"),
+        ("Previous Size", f"{prevsize} Bytes"),
+        ("New Size", f"{newsize} Bytes"),
+        ("Diff Link", f"[View Diff]({diff_link})"),
+    ]
+    notifier.notify_change(endpoint, fields)
 
 
 def notify_warning(endpoint, warning_message):
-    notify_warning_discord(endpoint, warning_message)
+    fields = [
+        ("Warning Type", "Content Warning"),
+        ("Timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    ]
+    notifier.notify_warning(endpoint, warning_message, fields)
 
 
 def main():
