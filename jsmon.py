@@ -58,30 +58,23 @@ def get_endpoint(endpoint):
         # Check status code
         if not (200 <= r.status_code < 300):
             warning_msg = f"Non-2xx status code: {r.status_code}"
-            notify_warning(endpoint, warning_msg)
-            return None
+            raise Exception(warning_msg)
 
         # Check content type
         content_type = r.headers.get("content-type", "").lower()
         if "javascript" not in content_type:
             warning_msg = f"Unexpected content type: {content_type}"
-            notify_warning(endpoint, warning_msg)
-            return None
+            raise Exception(warning_msg)
 
         # Check for empty body
         body = r.text.strip()
         if not body:
             warning_msg = "Empty response body"
-            notify_warning(endpoint, warning_msg)
-            return None
+            raise Exception(warning_msg)
 
         return r.text
-    except requests.Timeout:
-        print(f"Timeout error accessing endpoint: {endpoint}")
-        return None
     except requests.RequestException as e:
-        print(f"Error accessing endpoint {endpoint}: {e}")
-        return None
+        raise Exception(f"Error accessing endpoint {endpoint}: {e}")
 
 
 def get_hash(string):
@@ -224,10 +217,11 @@ def main():
             print(f"Skipping endpoint {ep} due to invalid endpoint")
             continue
         prev_hash = get_previous_endpoint_hash(ep)
-        ep_text = get_endpoint(ep)
-        if ep_text is None:
-            notify_error(ep, "Failed to access endpoint")
-            print(f"Skipping endpoint {ep} due to failed request")
+        try:
+            ep_text = get_endpoint(ep)
+        except Exception as e:
+            notify_error(ep, str(e))
+            print(f"Skipping endpoint {ep} due to error: {e}")
             continue
 
         ep_hash = get_hash(ep_text)
