@@ -1,6 +1,6 @@
 import requests
 from decouple import config
-from typing import Optional, Dict, Any, List, Tuple, cast
+from typing import Dict, Any, List, Tuple, cast
 from .base import BaseNotifier
 
 

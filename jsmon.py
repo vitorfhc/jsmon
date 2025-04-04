@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from decouple import config
 import requests
 import os
 import hashlib
