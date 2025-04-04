@@ -398,6 +398,11 @@ def main():
     for ep in allendpoints:
         if ep.strip() == "":
             continue
+        if not is_valid_endpoint(ep):
+            if notify_on_errors:
+                notify_error(ep, "Invalid endpoint")
+            print(f"Skipping endpoint {ep} due to invalid endpoint")
+            continue
         prev_hash = get_previous_endpoint_hash(ep)
         ep_text = get_endpoint(ep)
         if ep_text is None:
