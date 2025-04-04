@@ -355,15 +355,9 @@ def main():
         help="Base URL for diff files.",
         default=None,
     )
-    parser.add_argument(
-        "--notify-on-errors",
-        action="store_true",
-        help="Send notifications when errors occur while accessing endpoints.",
-    )
     args = parser.parse_args()
 
     diff_target_dir = args.diff_target
-    notify_on_errors = args.notify_on_errors
 
     if args.diffs_base_url and not is_valid_endpoint(args.diffs_base_url):
         print(
@@ -399,15 +393,13 @@ def main():
         if ep.strip() == "":
             continue
         if not is_valid_endpoint(ep):
-            if notify_on_errors:
-                notify_error(ep, "Invalid endpoint")
+            notify_error(ep, "Invalid endpoint")
             print(f"Skipping endpoint {ep} due to invalid endpoint")
             continue
         prev_hash = get_previous_endpoint_hash(ep)
         ep_text = get_endpoint(ep)
         if ep_text is None:
-            if notify_on_errors:
-                notify_error(ep, "Failed to access endpoint")
+            notify_error(ep, "Failed to access endpoint")
             print(f"Skipping endpoint {ep} due to failed request")
             continue
 

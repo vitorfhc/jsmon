@@ -51,7 +51,8 @@ JSMon supports the following command line arguments:
 
 - `--diff-target DIRECTORY`: Directory to save HTML diff files. If not specified, diffs will only be sent via notifications.
 - `--diffs-base-url URL`: Base URL for diff files. This will be used to generate clickable links in notifications.
-- `--notify-on-errors`: Send notifications when errors occur while accessing endpoints. This will notify you via your configured notification channels (Telegram/Discord) whenever an endpoint cannot be accessed.
+
+Note: Error notifications are enabled by default. You will be notified via your configured notification channels whenever an endpoint cannot be accessed.
 
 ## Features
 
