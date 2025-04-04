@@ -166,8 +166,11 @@ def notify(endpoint, prev, new, diff_link):
         ("New Hash", f"`{new}`"),
         ("Previous Size", f"{prevsize} Bytes"),
         ("New Size", f"{newsize} Bytes"),
-        ("Diff Link", f"[View Diff]({diff_link})"),
     ]
+
+    if diff_link is not None:
+        fields.append(("Diff Link", f"[View Diff]({diff_link})"))
+
     notifier.notify_change(endpoint, fields)
 
 
