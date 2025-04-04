@@ -225,7 +225,7 @@ def notify_error(endpoint, error_message):
     notify_error_discord(endpoint, error_message)
 
 
-def notify(endpoint, prev, new, diff, diff_link):
+def notify(endpoint, prev, new, diff_link):
     prevsize = get_file_stats(prev).st_size
     newsize = get_file_stats(new).st_size
     notify_discord(endpoint, prev, new, prevsize, newsize, diff_link)
@@ -344,7 +344,7 @@ def main():
                     print(f"Diff saved locally to {diff_filepath}")
                     if args.diffs_base_url:
                         diff_link = f"{args.diffs_base_url}/{id}.html"
-                notify(ep, prev_hash, ep_hash, diff, diff_link)
+                notify(ep, prev_hash, ep_hash, diff_link)
             else:
                 print("New Endpoint enrolled: {}".format(ep))
 
