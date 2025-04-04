@@ -396,6 +396,8 @@ def main():
     allendpoints = get_endpoint_list("targets")
 
     for ep in allendpoints:
+        if ep.strip() == "":
+            continue
         prev_hash = get_previous_endpoint_hash(ep)
         ep_text = get_endpoint(ep)
         if ep_text is None:
