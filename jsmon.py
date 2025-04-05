@@ -69,17 +69,11 @@ def get_endpoint_list(endpointdir):
 def get_endpoint(endpoint):
     # get an endpoint, return its content with timeout and error handling
     try:
-        r = requests.get(endpoint, timeout=10, verify=False)
+        r = requests.get(endpoint, timeout=10, verify=False, allow_redirects=False)
 
         # Check status code
         if not (200 <= r.status_code < 300):
             warning_msg = f"Non-2xx status code: {r.status_code}"
-            raise Exception(warning_msg)
-
-        # Check content type
-        content_type = r.headers.get("content-type", "").lower()
-        if "javascript" not in content_type:
-            warning_msg = f"Unexpected content type: {content_type}"
             raise Exception(warning_msg)
 
         # Check for empty body
