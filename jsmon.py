@@ -20,7 +20,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 notifier = DiscordNotifier()
 
-# Global flag to track if we should continue running
 running = True
 
 
@@ -32,7 +31,6 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
-# Register the signal handler
 signal.signal(signal.SIGINT, signal_handler)
 
 
@@ -47,7 +45,6 @@ def is_valid_endpoint(endpoint):
     """
     try:
         result = urlparse(endpoint)
-        # Check if scheme and netloc are present
         return all([result.scheme, result.netloc])
     except Exception:
         return False
@@ -63,16 +60,13 @@ def get_endpoint_list(endpointdir):
         with open("{}/{}".format(endpointdir, file), "r") as f:
             endpoints.extend(f.readlines())
 
-    # Load all endpoints from a dir into a list
     return list(map(lambda x: x.strip(), endpoints))
 
 
 def get_endpoint(endpoint):
-    # get an endpoint, return its content with timeout and error handling
     try:
         r = requests.get(endpoint, timeout=10, verify=False, allow_redirects=False)
 
-        # Check status code
         if not (200 <= r.status_code < 300):
             warning_msg = f"Non-2xx status code: {r.status_code}"
             raise Exception(warning_msg)
@@ -83,15 +77,12 @@ def get_endpoint(endpoint):
 
 
 def get_hash(string):
-    # Hash a string
     if string is None:
         return None
     return hashlib.md5(string.encode("utf8")).hexdigest()[:10]
 
 
 def save_endpoint(endpoint, ephash, eptext):
-    # save endpoint content to file
-    # add it to  list of
     with open("jsmon.json", "r") as jsm:
         jsmd = json.load(jsm)
         if endpoint in jsmd.keys():
@@ -107,8 +98,6 @@ def save_endpoint(endpoint, ephash, eptext):
 
 
 def get_previous_endpoint_hash(endpoint):
-    # get previous endpoint version
-    # or None if doesnt exist
     with open("jsmon.json", "r") as jsm:
         jsmd = json.load(jsm)
         if endpoint in jsmd.keys():
@@ -148,9 +137,16 @@ def get_diff(old, new, content_type):
         else:
             old_lines = old_content.splitlines()
             new_lines = new_content.splitlines()
-
         differ = difflib.HtmlDiff()
-        html = differ.make_file(old_lines, new_lines)
+        old_lines_str = [
+            line.decode() if isinstance(line, bytes) else str(line)
+            for line in old_lines
+        ]
+        new_lines_str = [
+            line.decode() if isinstance(line, bytes) else str(line)
+            for line in new_lines
+        ]
+        html = differ.make_file(old_lines_str, new_lines_str)
         return html
     except FileNotFoundError as e:
         print(f"Error generating diff: Could not find file {e.filename}")
