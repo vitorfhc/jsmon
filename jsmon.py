@@ -76,12 +76,6 @@ def get_endpoint(endpoint):
             warning_msg = f"Non-2xx status code: {r.status_code}"
             raise Exception(warning_msg)
 
-        # Check for empty body
-        body = r.text.strip()
-        if not body:
-            warning_msg = "Empty response body"
-            raise Exception(warning_msg)
-
         return r
     except requests.RequestException as e:
         raise Exception(f"Error accessing endpoint {endpoint}: {e}")
@@ -126,7 +120,7 @@ def get_file_stats(fhash):
     return os.stat("downloads/{}".format(fhash))
 
 
-def get_diff(old, new):
+def get_diff(old, new, content_type):
     from jsbeautifier import BeautifierOptions
 
     opt = {
@@ -134,14 +128,30 @@ def get_diff(old, new):
         "keep_function_indentation": 0,
     }
     options = BeautifierOptions(opt)
-    oldlines = open("downloads/{}".format(old), "r").readlines()
-    newlines = open("downloads/{}".format(new), "r").readlines()
-    oldbeautified = jsbeautifier.beautify("".join(oldlines), options).splitlines()
-    newbeautified = jsbeautifier.beautify("".join(newlines), options).splitlines()
+    old_filepath = f"downloads/{old}"
+    new_filepath = f"downloads/{new}"
 
-    differ = difflib.HtmlDiff()
-    html = differ.make_file(oldbeautified, newbeautified)
-    return html
+    try:
+        with open(old_filepath, "r") as f_old, open(new_filepath, "r") as f_new:
+            old_content = f_old.read()
+            new_content = f_new.read()
+
+        if "javascript" in content_type:
+            old_lines = jsbeautifier.beautify(old_content, options).splitlines()
+            new_lines = jsbeautifier.beautify(new_content, options).splitlines()
+        else:
+            old_lines = old_content.splitlines()
+            new_lines = new_content.splitlines()
+
+        differ = difflib.HtmlDiff()
+        html = differ.make_file(old_lines, new_lines)
+        return html
+    except FileNotFoundError as e:
+        print(f"Error generating diff: Could not find file {e.filename}")
+        return f"<p>Error generating diff: Could not find file {e.filename}</p>"
+    except Exception as e:
+        print(f"Error generating diff between {old} and {new}: {e}")
+        return f"<p>Error generating diff: {e}</p>"
 
 
 def notify_error(endpoint, error_message):
@@ -234,7 +244,9 @@ def main():
         prev_hash = get_previous_endpoint_hash(ep)
         try:
             response = get_endpoint(ep)
-            ep_text = response.text
+            ep_text = response.text.strip()
+            content_type = response.headers.get("Content-Type", "").lower()
+
         except Exception as e:
             notify_error(ep, str(e))
             print(f"Skipping endpoint {ep} due to error: {e}")
@@ -248,7 +260,7 @@ def main():
             diff = None
             diff_link = None
             if prev_hash is not None:
-                diff = get_diff(prev_hash, ep_hash)
+                diff = get_diff(prev_hash, ep_hash, content_type)
                 if diff_target_dir:
                     id = str(uuid.uuid4())
                     diff_filepath = os.path.join(diff_target_dir, f"{id}.html")
