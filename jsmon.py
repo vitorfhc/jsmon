@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import urllib3
 from notifiers import DiscordNotifier
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -139,6 +140,11 @@ def get_diff(old, new, content_type):
         if "javascript" in content_type:
             old_lines = jsbeautifier.beautify(old_content, options).splitlines()
             new_lines = jsbeautifier.beautify(new_content, options).splitlines()
+        elif "html" in content_type:
+            soup_old = BeautifulSoup(old_content, "html5lib")
+            soup_new = BeautifulSoup(new_content, "html5lib")
+            old_lines = soup_old.prettify().splitlines()
+            new_lines = soup_new.prettify().splitlines()
         else:
             old_lines = old_content.splitlines()
             new_lines = new_content.splitlines()
