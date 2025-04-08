@@ -82,7 +82,7 @@ def get_endpoint(endpoint):
             warning_msg = "Empty response body"
             raise Exception(warning_msg)
 
-        return r.text
+        return r
     except requests.RequestException as e:
         raise Exception(f"Error accessing endpoint {endpoint}: {e}")
 
@@ -233,7 +233,8 @@ def main():
             continue
         prev_hash = get_previous_endpoint_hash(ep)
         try:
-            ep_text = get_endpoint(ep)
+            response = get_endpoint(ep)
+            ep_text = response.text
         except Exception as e:
             notify_error(ep, str(e))
             print(f"Skipping endpoint {ep} due to error: {e}")
