@@ -98,12 +98,17 @@ def save_endpoint(endpoint, ephash, eptext):
 
 
 def get_previous_endpoint_hash(endpoint):
-    with open("jsmon.json", "r") as jsm:
-        jsmd = json.load(jsm)
-        if endpoint in jsmd.keys():
-            return jsmd[endpoint][-1]
-        else:
-            return None
+    try:
+        with open("jsmon.json", "r") as jsm:
+            jsmd = json.load(jsm)
+            if endpoint in jsmd.keys():
+                return jsmd[endpoint][-1]
+            else:
+                return None
+    except FileNotFoundError:
+        with open("jsmon.json", "w") as jsm:
+            json.dump({}, jsm)
+        return None
 
 
 def get_file_stats(fhash):
